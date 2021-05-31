@@ -1,0 +1,23 @@
+# Installs a CL git prompt
+# Source: https://raw.githubusercontent.com/oyvindstegard/bashgit/master/.bashgit
+# Alternative: https://github.com/magicmonty/bash-git-prompt
+---
+- name: Install git prompt
+  become: yes
+  hosts: localhost
+  tasks:
+    - name: Download git prompt
+      environment:
+        http_proxy: http://proxy.ikim.uk-essen.de:3128
+        https_proxy: http://proxy.ikim.uk-essen.de:3128
+      get_url:
+        url: https://raw.githubusercontent.com/oyvindstegard/bashgit/master/.bashgit
+        dest: /opt/.bashgit
+    
+    - name: Activate prompt
+      copy:
+        dest: "/etc/profile.d/git_prompt.sh"
+        content: |
+          if [ -f /opt/.bashgit ]; then
+              . /opt/.bashgit
+          fi

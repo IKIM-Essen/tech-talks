@@ -1,0 +1,58 @@
+#!/usr/bin/env ansible-playbook
+
+# setup rancher on k1-20
+
+---
+- hosts: k8s
+  become: yes
+  ignore_errors: yes
+  remote_user: ubuntu
+  gather_facts: true
+  vars:
+    ansible_ssh_private_key_file: files/ikimk8s_rsa
+  environment:
+      http_proxy: http://proxy.ikim.uk-essen.de:3128
+      https_proxy: http://proxy.ikim.uk-essen.de:3128
+  roles:
+    - docker
+    - rancher
+    - security
+
+
+- hosts: infra
+  become: yes
+  ignore_errors: yes
+  remote_user: ubuntu
+  gather_facts: true
+  environment:
+      http_proxy: http://proxy.ikim.uk-essen.de:3128
+      https_proxy: http://proxy.ikim.uk-essen.de:3128
+  roles:
+    - docker
+    - security
+
+- hosts: server
+  become: yes
+  ignore_errors: yes
+  remote_user: ubuntu
+  gather_facts: true
+  environment:
+      http_proxy: http://proxy.ikim.uk-essen.de:3128
+      https_proxy: http://proxy.ikim.uk-essen.de:3128
+  roles:
+    - security
+
+
+- hosts: cluster
+  become: yes
+  ignore_errors: yes
+  remote_user: ubuntu
+  gather_facts: true
+  environment:
+      http_proxy: http://proxy.ikim.uk-essen.de:3128
+      https_proxy: http://proxy.ikim.uk-essen.de:3128
+  roles:
+    - update
+    - c-nodes
+    - nfs-client
+    - singularity
