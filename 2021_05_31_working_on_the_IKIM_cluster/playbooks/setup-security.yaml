@@ -1,0 +1,50 @@
+#!/usr/bin/env ansible-playbook
+---
+- hosts: localhost
+  become: yes
+  ignore_errors: yes
+  remote_user: ubuntu
+  gather_facts: true
+  environment:
+      http_proxy: http://proxy.ikim.uk-essen.de:3128
+      https_proxy: http://proxy.ikim.uk-essen.de:3128
+  tasks:
+  - name: add root account password 
+    ansible.builtin.user:
+      name: root
+      uid: 0
+      password: "$6$nbWrtUTVCgqMeMF5$rc.Y.JhQEotD6BgRAd9bHw1XGIhzzfYhv2Op6GU9ZVTUC4abesMOeAvIc2kGG3AjX4wfXA9NwPSPDcjM3SQ.O1"
+      update_password: always
+    tags: security
+
+  - name: install packages
+    apt:
+      pkg: 
+      - htop
+      - iftop
+      - smartmontools
+    tags: admin-tools
+          
+  - name: suspend services to prevent hibernation
+    ansible.builtin.systemd:
+      name: sleep,target
+      masked: yes
+    tags: no-hibernation
+          
+  - name: suspend services to prevent hibernation
+    ansible.builtin.systemd:
+      name: suspend.target
+      masked: yes
+    tags: no-hibernation
+
+  - name: suspend services to prevent hibernation
+    ansible.builtin.systemd:
+      name: hibernate.target
+      masked: yes
+    tags: no-hibernation
+
+  - name: suspend services to prevent hibernation
+    ansible.builtin.systemd:
+      name: hybrid-sleep.target
+      masked: yes
+    tags: no-hibernation

@@ -1,0 +1,37 @@
+# Basic setup for conda 
+---
+- name: IKIM Proxies
+  become: yes
+  hosts: localhost
+  tasks:
+    - name: SetUp Proxies
+      copy:
+        dest: "/etc/profile.d/proxy.sh"
+        content: |
+          export http_proxy=http://proxy:3128
+          export https_proxy=http://proxy:3128
+          export ftp_proxy=http://proxy:3128
+          export HTTP_PROXY=http://proxy:3128
+          export HTTPS_PROXY=http://proxy:3128
+          export FTP_PROXY=http://proxy:3128
+
+- name: VS Code watcher
+  become: yes
+  hosts: localhost
+  tasks:
+    - name: Increase viewing limit
+      lineinfile:
+        path: /etc/sysctl.conf
+        line: fs.inotify.max_user_watches=524288
+        create: yes
+
+    - name: Load new value
+      become: yes
+      command: sysctl -p
+
+- name: Change time zone
+  become: yes
+  hosts: localhost
+  tasks:
+    - name: Switch to German timezone
+      command: timedatectl set-timezone Europe/Berlin

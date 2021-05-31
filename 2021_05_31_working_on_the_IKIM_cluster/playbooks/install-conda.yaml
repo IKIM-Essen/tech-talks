@@ -1,0 +1,70 @@
+# Mabmbaforge setup for all users
+---  
+- name: Install Conda
+  become: yes
+  hosts: localhost
+  tasks:
+    - name: Download Mambaforge
+      environment:
+        http_proxy: http://proxy.ikim.uk-essen.de:3128
+        https_proxy: http://proxy.ikim.uk-essen.de:3128
+      get_url:
+        url: https://github.com/conda-forge/miniforge/releases/latest/download/Mambaforge-Linux-x86_64.sh
+        dest: /tmp/install-mambaforge.sh
+        checksum: md5:f416e56d3213adae6f77fe52138bd4f7
+        mode: 0550
+    
+    - name: Create conda folder
+      become: True
+      file:
+        path: /opt/mambaforge
+        state: directory
+        owner: ubuntu
+        mode: 755
+        recurse: yes
+    
+    - name: Run the installer
+      shell: /tmp/install-mambaforge.sh -b -u -p /opt/mambaforge
+   
+    - name: Remove the installer
+      file:
+        state: absent
+        path: /tmp/install-mambaforge.sh
+    
+    - name: Add mambaforge bin to path
+      become: True
+      shell: ln -s /opt/mambaforge/etc/profile.d/conda.sh /etc/profile.d/conda.sh
+    
+    - name: conda - read permission for all
+      become: True
+      file:
+        path: /opt/mambaforge
+        mode: +r
+        recurse: yes
+    
+    - name: conda - execution permission for all
+      become: True
+      file:
+        path: /opt/mambaforge/bin
+        mode: +x
+        recurse: yes
+
+    - name: Dirty conda init
+      copy:
+        dest: "/etc/profile.d/conda_init.sh"
+        content: |
+          # >>> conda initialize >>>
+          # !! Contents within this block are managed by 'conda init' !!
+          __conda_setup="$('/opt/mambaforge/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
+          if [ $? -eq 0 ]; then
+              eval "$__conda_setup"
+          else
+              if [ -f "/opt/mambaforge/etc/profile.d/conda.sh" ]; then
+                  . "/opt/mambaforge/etc/profile.d/conda.sh"
+              else
+                  export PATH="/opt/mambaforge/bin:$PATH"
+              fi
+          fi
+          unset __conda_setup
+          # <<< conda initialize <<<
+
