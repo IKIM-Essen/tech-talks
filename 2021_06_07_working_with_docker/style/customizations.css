@@ -1,0 +1,44 @@
+/*
+ * Add the role "plain" to disable the default style for block images.
+ * 
+ * Usage:
+ * image::screenshot.png[Alt text,role="plain"]
+ */
+.reveal section div.plain img {
+	border: 0;
+	box-shadow: none;
+	background: none;
+}
+
+/*
+ * Add the role "plain" to disable the default style for inline images.
+ * 
+ * Usage:
+ * image:screenshot.png[Alt text,role="plain"]
+ */
+.reveal section span.plain img {
+	border: 0;
+	box-shadow: none;
+	background: none;
+}
+
+/*
+ * Add the role "smallertext" to shrink the font size to 70% in a block.
+ * 
+ * Usage:
+ * [.smallertext]
+ * Content
+ */
+.reveal section div.smallertext {
+	font-size: 0.7em;
+}
+
+/*
+ * Add the role "smallertext" to shrink the font size to 70% in inline elements.
+ * 
+ * Usage:
+ * [.smallertext]#Content#
+ */
+.reveal section span.smallertext {
+	font-size: 0.7em;
+}

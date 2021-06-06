@@ -1,0 +1,13 @@
+version: "3"
+services:
+  web:
+    # This service is built from a Dockerfile
+    # placed alongside this Compose file.
+    build: .
+    ports:
+      - "8090:5000"
+    depends_on:
+      - store
+
+  store:
+    image: "redis:alpine"
