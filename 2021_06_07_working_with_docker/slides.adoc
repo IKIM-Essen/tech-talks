@@ -52,8 +52,8 @@ A container includes OS components -- except the kernel -- and one or more appli
 * What about a Linux container on a different host OS? +
 [.step]#There is no Linux kernel, therefore Docker uses a virtual machine.#
 
-* What about an x86_64 Linux container on an arm64v8 Linux host? +
-[.step]#Incompatible architectures: Docker adds a VM to the mix.#
+* What about an arm64v8 Linux container on an x86_64 Linux host? +
+[.step]#Incompatible architectures: Docker adds an emulation layer.#
 
 * Can containers use devices such as GPUs? +
 [.step]#Yes, you just need to expose the device to the container and install the appropriate OS components in the container.#
