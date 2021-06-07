@@ -1,0 +1,22 @@
+{
+	"name": "Asciidoctor",
+	"build": {
+		"dockerfile": "Dockerfile",
+	},
+	
+	// Set *default* container specific settings.json values on container create. 
+	"settings": {},
+
+	// Add the IDs of extensions you want installed when the container is created.
+	// Note that some extensions may not work in Alpine Linux. See https://aka.ms/vscode-remote/linux.
+	"extensions": [
+		"asciidoctor.asciidoctor-vscode"
+	],
+
+	// Download the 3.9 branch of reveal.js to be able to create slides.
+	// Source: https://docs.asciidoctor.org/reveal.js-converter/latest/setup/standalone-executable/
+	"postCreateCommand": "git clone -b v3.9 --depth 1 https://github.com/hakimel/reveal.js.git 2>/dev/null || true",
+
+	// Comment out connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
+	"remoteUser": "vscode"
+}

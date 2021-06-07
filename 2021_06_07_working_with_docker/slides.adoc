@@ -1,0 +1,356 @@
+= Working with Docker
+:figure-caption!:
+:source-highlighter: highlightjs
+:highlightjs-languages: dockerfile, yaml
+:imagesdir: img
+:customcss: style/customizations.css
+
+image::Docker-Logo-White-RGB_Moby.png[Docker logo,width=25%,role="plain"]
+
+Enrico Nasca +
+Research engineer at IKIM
+
+[.smallertext]
+7 June 2021
+
+[.notes]
+--
+Today I'd like to discuss the basics of Docker and provide information that could be useful even if you are already familiar with containers.
+--
+
+[%notitle]
+== Containers
+
+Containers provide a fairly good balance between virtualisation and native execution.
+
+.Source: https://www.redhat.com/en/topics/containers/whats-a-linux-container[Red Hat]
+image::virtualization-vs-containers.png[Virtualisation models]
+
+[.notes]
+--
+Docker Engine is a well-known piece of containerisation software.
+Containers have become popular thanks to a good balance between virtualisation and native execution.
+
+If you've ever opened a computer science or telecommunications book, you've seen layered models.
+This figure compares virtual machines with containers.
+Containers virtualise everything above the kernel level, while the kernel and the hardware level remain native.
+On the other hand, virtual machines go all the way down to and including the hardware level.
+
+This approach is great in many aspects but it's important to be aware of the limitations, which may be a bit subtle.
+--
+
+[%notitle]
+== Containers and hosts
+
+A container includes OS components -- except the kernel -- and one or more applications.
+
+[.smallertext]
+[%step]
+* What if you run x86_64 Linux containers on an x86_64 Linux host? +
+[.step]#They all share the kernel with the host.#
+
+* What about a Linux container on a different host OS? +
+[.step]#There is no Linux kernel, therefore Docker uses a virtual machine.#
+
+* What about an arm64v8 Linux container on an x86_64 Linux host? +
+[.step]#Incompatible architectures: Docker adds an emulation layer.#
+
+* Can containers use devices such as GPUs? +
+[.step]#Yes, you just need to expose the device to the container and install the appropriate OS components in the container.#
+
+[.notes]
+--
+A container includes applications, their dependencies and supporting software from the OS.
+It does not include the kernel and does not introduce virtual devices.
+Let's take a quick look at a few implications.
+
+When a VM is introduced, the performance advantages of containers don't apply, but crucially you can use existing containers and share your own with the world.
+
+From this point forward, we will only discuss Linux containers.
+Windows containers exist but we don't need to cover them as we don't have a use for them.
+Docker does not support macOS containers and to my knowledge they don't exist.
+--
+
+== Command-line Docker
+
+[source,bash]
+----
+# Download an image
+docker pull alpine
+
+# Create a container, run a command and stop immediately.
+docker run --name=helloalpine1 alpine echo hello
+
+# Create a container and keep it running.
+docker run --name=helloalpine2 alpine tail -f /dev/null
+
+# To the running container, open another shell and execute:
+docker stop helloalpine2
+
+# Clean up
+docker rm helloalpine1 helloalpine2
+----
+
+Lifecycle of a container: +
+create -> start -> stop -> remove.
+
+[.notes]
+--
+Let's move now to the command line and create some containers with Docker.
+
+In order to create a container, you need an image, which is a package that acts as a starting point for a container.
+You can create many containers out of the same images and each will live a life of its own.
+
+Let's download an image of Alpine, a Linux distribution.
+Now let's create a container named helloalpine1 and ask Docker to run a command in the container.
+When the command completes, the container gets stopped automatically.
+We still have the image and the container in local storage, they're just not actively doing anything.
+
+Let's create a container named helloalpine2 and issue a command which doesn't exit on its own.
+This is useful if you want to run something like a web server.
+
+One way to stop a running container is to open a separate terminal and execute the appropriate docker command.
+
+Now let's clean up these two stopped containers.
+--
+
+[%notitle]
+== Making changes to a container
+
+Changes made in a container are preserved when it's stopped, but are lost when it's removed.
+
+[.smallertext]
+. `docker run -it --name=helloalpine alpine`
+. Make a change, such as `touch hello.txt`, then exit.
+. `docker start -i helloalpine`
+* The file is still present.
+. `docker rm helloalpine`
+* All files are gone, but the image is still on storage and can be used to create new containers.
+
+[.notes]
+--
+Let's try and make a change, such as writing a file within a container.
+We're invoking docker with the option -it, which attaches our shell on the host to a shell in the container.
+We can avoid adding `/bin/sh` to our command line because this particular image is configured to run a shell by default.
+--
+
+[%notitle]
+== Filesystem mounts
+
+Filesystem mounts allow sharing persistent storage with the container.
+
+[source]
+----
+justme@home:~$ mkdir testdir
+justme@home:~$ docker run --rm -it \
+    --mount type=bind,src="$PWD"/testdir,dst=/data \
+    alpine
+----
+
+[.smallertext]
+The path `./testdir` on the host is now bound-mounted to `/data` in the container.
+Changes to one location are reflected in the other.
+
+[.notes]
+--
+What if we want our changes to outlive the container?
+We can share a filesystem location between the host and the container.
+
+Let's create a new directory and bind-mount it to the path `/data` in the container.
+If we create a file in the container, we will see it on the host as well.
+
+Note that we've used a new option: `--rm`.
+It instructs Docker to automatically remove the container when it stops.
+--
+
+[%notitle]
+== File ownership
+
+What happens with file ownership?
+
+This is better demonstrated on a Linux host, such as an IKIM node.
+
+[source]
+----
+justme@home:~$ ssh \
+    -J justme@login.ikim.uk-essen.de \
+    justme@g1-2
+
+justme@g1-2:~$ mkdir testdir
+justme@g1-2:~$ docker run --rm -it \
+    --mount type=bind,src="$PWD"/testdir,dst=/data \
+    alpine
+/ # echo hello > /data/hello.txt
+
+justme@g1-2:~$ ls -l testdir/hello.txt 
+-rw-r--r-- 1 root root 6 Jun  5 08:44 testdir/hello.txt
+----
+
+[.notes]
+--
+Now let's connect to a Linux host and do the same thing.
+When I inspect the file, I can see that it's owned by root.
+The host reports root too. Did I just escalate my privileges?
+Sort of.
+--
+
+[%notitle]
+== Root privileges
+
+The file is owned by root, even if you're neither root nor have passwordless sudo.
+Why?
+
+[source]
+----
+justme@g1-2:~$ groups
+justme docker
+
+justme@g1-2:~$ ls -l /var/run/docker.sock
+srw-rw---- 1 root docker 0 Mar 31 13:14 /var/run/docker.sock
+----
+
+[.smallertext]
+* You belong to the `docker` group, which can write to the Docker socket.
+* By writing to the Docker socket, you send commands to Docker Engine, which runs as root.
+* As a result, you are effectively root.
+You can do scary things such as bind-mounting a path where you couldn't normally write.
+
+== Dockerfiles
+
+Docker images can be created by building on top of existing images.
+
+[.smallertext]
+Create a file called `Dockerfile` in the current directory.
+
+[source,dockerfile]
+----
+FROM ubuntu
+ARG USERNAME=justme
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+RUN groupadd --gid $USER_GID $USERNAME \
+    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME
+USER $USERNAME
+----
+
+[.smallertext]
+Build and run the image.
+
+[source]
+----
+justme@g1-2:~$ docker build -t ubuntu-nonroot .
+justme@g1-2:~$ docker run --rm -it ubuntu-nonroot
+----
+
+[.notes]
+--
+Maybe we'd like to create our own image.
+A nice way of doing that is to reuse an existing image and build on top of it.
+
+Let's create a file called `Dockerfile` in the current directory and describe our image.
+In this case, we are saying that we want to use the image `ubuntu` as a base, then we want to run a command.
+In this command, we create a new user with a name, a UID and a primary group.
+Finally, we declare that we want the newly created user to be our default.
+In the base image, the default and only user was root.
+
+Let's build the image, run it and note that we aren't root anymore.
+--
+
+== Portability
+
+* The root user in the container is root outside of the container too.
+The same goes for all other UIDs and GIDs.
+* If you want to be "you" in a container, build an image and create an account with the same UID+GIDs.
+
+[.smallertext]
+How to find the relevant information?
+
+[source]
+----
+justme@g1-2:~$ id
+uid=1014(justme) gid=1014(justme) groups=1014(justme),998(docker)
+----
+
+[.notes]
+--
+We've seen how files created as root in the container are owned by root on the host too.
+The same happens with any other user, but note that usernames don't matter, only UIDs and GIDs do.
+
+If you want to make changes to a filesystem location and you go back and forth between host and container, you're better off creating a container account with the same UID and primary GID as your user on the host.
+Otherwise, you may end up with creating files that you can't change or remove anymore.
+--
+
+[%notitle]
+== Portability without a native kernel
+
+These considerations apply when Docker can use the native kernel.
+
+In other cases, such as with a macOS host, the VM layer handles users and privileges.
+
+[.notes]
+--
+Note that if you test all of this on macOS or Windows, you will see different results.
+Whenever Docker cannot share the kernel with the host, it needs to introduce a VM.
+The VM will decide how to handle user mapping, permissions, etc.
+
+I hope you can see now that containers are portable only to a certain extent.
+You need to test your Dockerfile on a platform equivalent to the one that will execute it.
+--
+
+[%notitle]
+== x86 images on an Apple M1 chip
+
+Pay attention to the CPU architecture of a Docker image.
+
+image::miniconda-dockerhub-screenshot.png[Single-arch image]
+
+image::python-dockerhub-screenshot.png[Multi-arch image]
+
+[.notes]
+--
+Let's look at a somewhat common example: running Docker on an Apple M1 chip.
+The M1 is based on the ARM architecture, but x86 Docker images are more common.
+
+If you go to Docker Hub and look for an image, pay attention to the available architectures.
+
+With Docker on an Apple M1 host, ARM images perform much better than x86 images.
+You can run x86 images, but another layer will kick in, namely Apple's Rosetta.
+
+x86 images will generally run ok, albeit slowly, but occasionally you might see a crash.
+Apple's Rosetta doesn't cover edge cases, such as applications that depend on special x86 instructions found in newer processors.
+
+What can you do if you encounter an incompatible image?
+Try and locate the original Dockerfile and source files.
+If the Dockerfile uses a base image which is available for ARM, then you can rebuild the image yourself.
+--
+
+== Thanks!
+
+Further reading:
+
+* link:https://docs.docker.com/compose/[Docker Compose]: +
+multi-container applications.
+* link:https://code.visualstudio.com/docs/remote/containers-tutorial[Devcontainers in Visual Studio Code]: +
+portable (with the usual caveats), self-documenting development environments.
+* Container orchestration with link:https://kubernetes.io[Kubernetes]: +
+deploy containerised services in a cluster.
+
+[.notes]
+--
+Examples from the directory `compose-examples`:
+
+1. Start with a Flask web server using a plain Dockerfile (https://docs.docker.com/compose/gettingstarted/)
+cd v1
+docker build -t flask-example .
+docker run -d -p 8090:5000 flask-example
+curl http://127.0.0.1:8090/
+
+2. Turn it into a Compose file and add redis, but just retrieve a static value (see https://opensource.com/article/18/4/how-build-hello-redis-with-python)
+cd ../v2
+docker compose up
+curl http://127.0.0.1:8090/
+docker compose down
+
+3. Add nginx as a reverse proxy.
+cd ../v3
+--

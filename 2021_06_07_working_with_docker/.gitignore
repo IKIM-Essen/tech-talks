@@ -1,0 +1,5 @@
+# Local copy of reveal.js, created by the devcontainer.
+/reveal.js/
+
+# Generated output.
+/slides.html
